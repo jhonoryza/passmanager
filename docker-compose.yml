@@ -1,0 +1,48 @@
+version: "3.7"
+services:
+ mariadb:
+  image: "mariadb"
+  container_name: "mariadb"
+  hostname: "mariadb"
+  restart: unless-stopped
+  volumes:
+   - "mariadb_vol:/var/lib/mysql"
+   - "/etc/localtime:/etc/localtime:ro"
+  environment:
+   - "MYSQL_ROOT_PASSWORD=secret"
+   - "MYSQL_PASSWORD=secret"
+   - "MYSQL_DATABASE=vaultwarden"
+   - "MYSQL_USER=vaultwarden"
+
+ vaultwarden:
+  image: "vaultwarden/server:latest"
+  container_name: "vaultwarden"
+  hostname: "vaultwarden"
+  restart: unless-stopped
+  volumes:
+   - "vaultwarden_vol:/data/"
+  environment:
+   - "DATABASE_URL=mysql://vaultwarden:secret@mariadb/vaultwarden"
+   - "ADMIN_TOKEN=secret"
+   - "RUST_BACKTRACE=1"
+  ports:
+   - "8200:80"
+
+ backup:
+  image: offen/docker-volume-backup:v2
+  container_name: "pass-backup"
+  restart: unless-stopped
+  env_file: ./backup.env
+  environment:
+    AWS_ENDPOINT: minio.domain.com
+    AWS_S3_BUCKET_NAME: vaultwarden
+    AWS_ACCESS_KEY_ID: root
+    AWS_SECRET_ACCESS_KEY: secret
+  volumes:
+    - vaultwarden_vol:/backup/vaultwarden-vol-backup:ro
+    - mariadb_vol:/backup/mariadb-vol-backup:ro
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+
+volumes:
+ vaultwarden_vol:
+ mariadb_vol:
